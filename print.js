@@ -53,20 +53,21 @@ function vectorProd(first, second){
     return result;
 }
 var memo = [];
-var o = [0, 1, 2, 3];
 function getResult(attacker, defender){
     var result = [];
     var val = [];
     val.push(attacker.troop);
     val.push(defender.troop);
 
-    for(var i = 0; i < Attacker.total() + Defender.total() + 1; i++){
+    for(var i = 0; i < Attacker.total() + Defender.total() + 3; i++){
         result.push(0);
     }
     if(attacker.total() == 0){
         result[Attacker.total() + defender.total()] = 1;
+        result[result.length-1] = defender.value();
     }else if(defender.total() == 0){
         result[Attacker.total() - attacker.total()] = 1;
+        result[result.length-2] = attacker.value();
     }else if(val in memo){
         result = memo[val].slice(0);
     }else{
@@ -74,7 +75,7 @@ function getResult(attacker, defender){
         for(var i = 0; i <= attacker.total(); i++){
             for(var j = 0; j <= defender.total(); j++){
                 if(matrix[i][j] != 0){
-                    var child = getResult(attacker.kill(j, o), defender.kill(i, o));
+                    var child = getResult(attacker.kill(j, aorder), defender.kill(i, dorder));
                     child = scalMult(matrix[i][j], child);
                     for(var k = 0; k < child.length; k++){
                         result[k] = result[k] + child[k];
@@ -132,6 +133,13 @@ class Side{
             }
             return result;
         }
+        this.value = function(){
+            var result = 0;
+            for(var i = 0; i < this.troop.length; i++){
+                result = result + this.troop[i]*troops[i].value;
+            }
+            return result;
+        }
     }
 }
 class Troop{
@@ -150,12 +158,24 @@ troops.push(new Troop(1, 4, 15, "Bomber"));
 var Attacker = new Side(true);
 var Defender = new Side(false);
 var answer = [];
+var values = [];
+var aorder = [];
+var dorder = [];
 var len = 8;
+var win = 0;
 
 
 function run(){
     Attacker.reset();
     Defender.reset();
+    aorder = [];
+    dorder = [];
+    var a = $("#aOrder").children("#sortable").children("li");
+    var d = $("#dOrder").children("#sortable").children("li");
+    for(var i = 0; i < a.length; i++){
+        aorder.push(a[i].value);
+        dorder.push(d[i].value);
+    }
     troops.forEach(function(item, index, array){
         var sect = $("#" + item.name);
         var x = Math.abs(parseInt(sect.children(".att").children()[0].value));
@@ -168,6 +188,9 @@ function run(){
         Defender.troop.push(y);
     })
     answer = getResult(Attacker, Defender, 0);
+    values = answer.splice(answer.length-2, 2);
+    values[0] = Attacker.value()-values[0];
+    values[1] = Defender.value()-values[1];
     memo = [];
     len = $("#length")[0].value;
     printOutput();
@@ -181,16 +204,30 @@ function print(){
         $("#input").append(next);
         printInput(item);
     })
+    printOrder();
 }
 function printInput(item){
-    document.getElementById(item.name).innerHTML =
-        "<div class =\"small-2 columns\"><p>"
-        + item.name +
-        "</p></div> <div class =\"small-5 columns att\"><input type=\"number\" value=\"0\"></div><div class =\"small-5 columns def\"><input type=\"number\" value=\"0\"></div>";
+    $("#" + item.name).empty();
+    $("#" + item.name).append("<div class =\"small-2 columns\"><p>" + item.name + "</p></div>");
+    $("#" + item.name).append("<div class =\"small-4 columns att\"><input type=\"number\" value=\"0\"></div>");
+    $("#" + item.name).append("<div class =\"small-4 columns def\"><input type=\"number\" value=\"0\"></div>");
+}
+
+function printOrder(){
+    var x = $("#aOrder").children("#sortable");
+    var y = $("#dOrder").children("#sortable");
+    troops.forEach(function(item, index, array){
+        var next = "<li class=\"ui-state-default\" value = " + index +">" + item.name + "</li>";
+        x.append(next);
+        y.append(next);
+    })
 }
 function printOutput(){
+    printProbabilities();
+    printEV();
+}
+function printProbabilities(){
     var c = 0;
-    var total = 0;
     $("#nums").empty();
     $("#cumul").empty();
     $("#indiv").empty();
@@ -199,10 +236,10 @@ function printOutput(){
     $("#indiv").append("<td>Individual</td>");
     answer.forEach(function(item, index, array){
         if(Attacker.total()-index == 0){
-            total = c;
+            win = c;
             c = 0;
         }else if(Attacker.total()-index == -1){
-            c = 100 - c - total;
+            c = 100 - c - win;
         }
         if(Attacker.total()-index >= 0){
             c = c + item*100;
@@ -218,11 +255,21 @@ function printOutput(){
     $("#nums").append("<th>Defenders survive</th>");
     $("#cumul").append("<td></td>");
     $("#indiv").append("<td></td>");
+
 }
-function format(n, c){
-    if(n < .000001 & c > 5)
-        return n.toPrecision(c-5);
-    else
-        return String(n.toPrecision(c)).substr(0, c);
+function printEV(){
+    $("#EV").empty();
+    $("#EV").append("<td>" + format(win, len) + "</td>");
+    $("#EV").append("<td>" + format(values[0], len) + "</td>");
+    $("#EV").append("<td>" + format(values[1], len) + "</td>");
+    $("#EV").append("<td>" + format(values[1]-values[0], len) + "</td>");
+    $("#EV").append("<td>" + format(values[1]/values[0], len) + "</td>");
 }
+function format(n, length){
+    if(n > -.000001 & n < .000001 & length > 5)
+        return n.toPrecision(length-5);
+    var temp = String(n.toPrecision(length));
+    return temp.length <= n ? temp : temp.substr(0, length);
+}
+
 print();

@@ -1,5 +1,5 @@
 <!doctype html>
-<html class="no-js" lang="en">
+<html lang="en">
     <head>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
         <meta charset="utf-8" />
@@ -8,8 +8,28 @@
         <title>A&A Odds</title>
         <link rel="stylesheet" href="css/foundation.css" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/foundation/6.2.3/foundation.min.css">
+        <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
         <script src="https://cdn.jsdelivr.net/foundation/6.2.3/foundation.min.js"></script>
+        <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+        <style>
+         #sortable { list-style-type: none; margin: 0; padding: 0; width: 60%; }
+         #sortable li { margin: 0 5px 5px 5px; padding: 5px; font-size: 1.2em; height: 1.5em; }
+         html>body #sortable li { height: 1.5em; line-height: 1.2em; }
+         .ui-state-highlight { height: 1.5em; line-height: 1.2em; }
+        </style>
 
+        <script>
+         $( function() {
+             $("#sortable").sortable({
+                 placeholder: "ui-state-highlight"
+             });
+             $("#sortable").disableSelection();
+             $("#dOrder").children("#sortable").sortable({
+                 placeholder: "ui-state-highlight"
+             });
+             $("#dOrder").children("#sortable").disableSelection();
+         } );
+        </script>
 
     </head>
     <body>
@@ -58,6 +78,31 @@
                 </tbody>
             </table>
         </div>
+        <div class ="table-scroll" id ="output">
+            <table>
+                <thead>
+                    <th>Attacker Winrate</th>
+                    <th>Attackers Average Lost</th>
+                    <th>Defenders Average Lost</th>
+                    <th>Difference</th>
+                    <th>Ratio</th>
+                </thead>
+                <tbody>
+                    <tr id ="EV">
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class ="small-6 columns" id ="aOrder">
+            Attacker Loss Order
+            <ul id="sortable"></ul>
+        </div>
+        <div class ="small-6 columns" id ="dOrder">
+            Defender Loss Order
+            <ul id="sortable"></ul>
+        </div>
+
+
 
         <script src ="print.js"></script>
     </body>
