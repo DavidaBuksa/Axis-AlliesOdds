@@ -1,4 +1,5 @@
 "use strict";
+//simple factorial, nothing fancy
 function fact(num){
     var ret = 1;
     for(var i = 2; i <= num; i++){
@@ -6,14 +7,17 @@ function fact(num){
     }
     return ret;
 }
+//simple nCk
 function choose(num, goal){
     return fact(num)/(fact(num-goal)*fact(goal));
 }
+//X = goal where X~b(p, num)
 function binompdf(p, num, goal){
     if(goal > num)
         return 0;
     return Math.pow(p, goal)*Math.pow(1-p, num-goal)*choose(num, goal);
 }
+//sum elements in an array
 function sumEles(vect){
     var result = 0;
     for(var i = 0; i < vect.length; i++){
@@ -21,12 +25,14 @@ function sumEles(vect){
     }
     return result;
 }
+//multiply each element of an array by a constant
 function scalMult(scal, vect){
     for(var i = 0; i < vect.length; i++){
         vect[i] = vect[i]*scal;
     }
     return vect;
 }
+//output[i] = first[j] + second[k], for all j,k s.t. j+k = i
 function vectorMult(first, second){
     var result = [];
     for(var i = 0; i < first.length; i++){
@@ -40,6 +46,7 @@ function vectorMult(first, second){
     }
     return result;
 }
+//output[i][j] = first[i]*second[j], modified to maintain a valid probability model after setting output[0][0] = 0 by definition
 function vectorProd(first, second){
     var result = [];
     var mod = 1/(1-first[0]*second[0]);
@@ -52,7 +59,9 @@ function vectorProd(first, second){
     result[0][0] = 0;
     return result;
 }
-var memo = [];
+var memo = [];//stores getResult values
+//gets the probability distribution of battle survivors AND expected value(EV) remaining alive, in output[0:length-2] and output[length-2:length] respectively.
+//All attackers survive = output[0], all defenders survive = output[length-3], EV of attacker = output[length-2], EV of defender = output[length-1]
 function getResult(attacker, defender){
     var result = [];
     var val = [];
@@ -88,7 +97,7 @@ function getResult(attacker, defender){
     }
     return result;
 }
-
+//tracks troops on one side, and functions for them
 class Side{
     constructor(a){
         this.troop = [];
@@ -96,6 +105,7 @@ class Side{
         this.reset = function () {
             this.troop = [];
         }
+        //distribution of number of hits in one round
         this.getHits = function () {
             var result = [1];
             var t = this.att;
@@ -111,6 +121,7 @@ class Side{
             })
             return result;
         }
+        //total troops in the side
         this.total = function (){
             var result = 0;
             this.troop.forEach(function(item, index, array){
@@ -118,6 +129,7 @@ class Side{
             })
             return result;
         }
+        //return a new side with number troops less, removed in order
         this.kill = function(number, order){
             var result = new Side(this.att);
             for(var i = 0; i < order.length; i++){
@@ -133,6 +145,7 @@ class Side{
             }
             return result;
         }
+        //EV of troops in this side
         this.value = function(){
             var result = 0;
             for(var i = 0; i < this.troop.length; i++){
@@ -142,6 +155,7 @@ class Side{
         }
     }
 }
+//struct for different troop types
 class Troop{
     constructor(def, att, val, nam){
         this.str = [def, att];
@@ -149,7 +163,7 @@ class Troop{
         this.name = nam;
     }
 }
-var troops = [];
+var troops = []; //stores current available troop types
 troops.push(new Troop(2, 1, 3, "Infantry"));
 troops.push(new Troop(2, 3, 5, "Tank"));
 troops.push(new Troop(4, 3, 12, "Fighter"));
@@ -164,7 +178,7 @@ var dorder = [];
 var len = 8;
 var win = 0;
 
-
+//main function from "Calculate"
 function run(){
     Attacker.reset();
     Defender.reset();
@@ -197,7 +211,7 @@ function run(){
 }
 
 
-
+//print at webpage load
 function print(){
     troops.forEach(function(item, index, array){
         var next = "<div class = \"row\" id =\"" + item.name + "\">\n</div>";
@@ -206,13 +220,14 @@ function print(){
     })
     printOrder();
 }
+//print input boxes
 function printInput(item){
     $("#" + item.name).empty();
     $("#" + item.name).append("<div class =\"small-2 columns\"><p>" + item.name + "</p></div>");
     $("#" + item.name).append("<div class =\"small-4 columns att\"><input type=\"number\" value=\"0\"></div>");
     $("#" + item.name).append("<div class =\"small-4 columns def\"><input type=\"number\" value=\"0\"></div>");
 }
-
+//print sortable lists
 function printOrder(){
     var x = $("#aOrder").children("#sortable");
     var y = $("#dOrder").children("#sortable");
@@ -222,10 +237,12 @@ function printOrder(){
         y.append(next);
     })
 }
+//print result after calculations
 function printOutput(){
     printProbabilities();
     printEV();
 }
+//print distribution after calculation
 function printProbabilities(){
     var c = 0;
     $("#nums").empty();
@@ -257,6 +274,7 @@ function printProbabilities(){
     $("#indiv").append("<td></td>");
 
 }
+//print expected value of calculation
 function printEV(){
     $("#EV").empty();
     $("#EV").append("<td>" + format(win, len) + "</td>");
@@ -265,6 +283,7 @@ function printEV(){
     $("#EV").append("<td>" + format(values[1]-values[0], len) + "</td>");
     $("#EV").append("<td>" + format(values[1]/values[0], len) + "</td>");
 }
+//custom number formatting for output
 function format(n, length){
     if(n > -.000001 & n < .000001 & length > 5)
         return n.toPrecision(length-5);
@@ -272,4 +291,4 @@ function format(n, length){
     return temp.length <= n ? temp : temp.substr(0, length);
 }
 
-print();
+print();//print for webpage load
