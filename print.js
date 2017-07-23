@@ -49,14 +49,19 @@ function vectorMult(first, second){
 //output[i][j] = first[i]*second[j], modified to maintain a valid probability model after setting output[0][0] = 0 by definition
 function vectorProd(first, second){
     var result = [];
-    var mod = 1/(1-first[0]*second[0]);
+    var mod = 1;
+    if(use_mod){
+        mod = 1/(1-first[0]*second[0])
+    }
     for(var i = 0; i < first.length; i++){
         result.push([]);
         for(var j = 0; j < second.length; j++){
             result[i].push(first[i]*second[j]*mod);
         }
     }
-    result[0][0] = 0;
+    if(use_mod){
+        result[0][0] = 0;
+    }
     return result;
 }
 var memo = [];//stores getResult values
@@ -81,8 +86,8 @@ function getResult(attacker, defender){
         result = memo[val].slice(0);
     }else{
         var matrix = vectorProd(attacker.getHits(), defender.getHits());
-        for(var i = 0; i <= attacker.total(); i++){
-            for(var j = 0; j <= defender.total(); j++){
+        for(var i = 0; i <= attacker.maxhits(); i++){
+            for(var j = 0; j <= defender.maxhits(); j++){
                 if(matrix[i][j] != 0){
                     var child = getResult(attacker.kill(j, aorder), defender.kill(i, dorder));
                     child = scalMult(matrix[i][j], child);
@@ -125,6 +130,14 @@ class Side{
         this.total = function (){
             var result = 0;
             this.troop.forEach(function(item, index, array){
+                if(!troops[index].tags.includes("OTL"))
+                    result = result + item;
+            })
+            return result;
+        }
+        this.maxhits = function (){
+            var result = 0;
+            this.troop.forEach(function(item, index, array){
                 result = result + item;
             })
             return result;
@@ -135,6 +148,10 @@ class Side{
             for(var i = 0; i < order.length; i++){
                 var j = order[i];
                 result.troop[j] = this.troop[j];
+                if(troops[j].tags.includes("OTL")){
+                    result.troop[j] = 0;
+                    use_mod = 1;
+                }
                 if(result.troop[j] < number){
                     number = number - result.troop[j];
                     result.troop[j] = 0;
@@ -149,7 +166,9 @@ class Side{
         this.value = function(){
             var result = 0;
             for(var i = 0; i < this.troop.length; i++){
-                result = result + this.troop[i]*troops[i].value;
+                if(!troops[i].tags.includes("OTL")){
+                    result = result + this.troop[i]*troops[i].value;
+                }
             }
             return result;
         }
@@ -157,17 +176,55 @@ class Side{
 }
 //struct for different troop types
 class Troop{
-    constructor(def, att, val, nam){
+    constructor(def, att, val, name, tags){
         this.str = [def, att];
         this.value = val;
-        this.name = nam;
+        this.name = name;
+        this.tags = tags;
+
+        this.printInput = function(){
+            $("#" + this.name).empty();
+            $("#" + this.name).append("<div class =\"small-2 columns\"><p>" + this.name + "</p></div>");
+            $("#" + this.name).append("<div class =\"small-4 columns att\"><input type=\"number\" value=\"0\"></div>");
+            $("#" + this.name).append("<div class =\"small-4 columns def\"><input type=\"number\" value=\"0\"></div>");
+        }
+        this.parse = function(){
+            var sect = $("#" + this.name);
+            var x = Math.abs(parseInt(sect.children(".att").children()[0].value));
+            var y = Math.abs(parseInt(sect.children(".def").children()[0].value));
+            if(Number.isNaN(x))
+                x = 0;
+            if(Number.isNaN(y))
+                y = 0;
+            Attacker.troop.push(x);
+            Defender.troop.push(y);
+        }
     }
 }
 var troops = []; //stores current available troop types
-troops.push(new Troop(2, 1, 3, "Infantry"));
-troops.push(new Troop(2, 3, 5, "Tank"));
-troops.push(new Troop(4, 3, 12, "Fighter"));
-troops.push(new Troop(1, 4, 15, "Bomber"));
+troops.push(new Troop(2, 1, 3, "Infantry", ["land"]));
+troops.push(new Troop(2, 3, 5, "Tank", ["land"]));
+troops.push(new Troop(4, 3, 12, "Fighter", ["air"]));
+troops.push(new Troop(1, 4, 15, "Bomber", ["air"]));
+troops.push(new Troop(4, 4, 24, "Battleship", ["OTL"]));
+troops[4].printInput = function(){
+    $("#" + this.name).empty();
+    $("#" + this.name).append("<div class =\"small-2 columns\"><p>" + this.name + "</p></div>");
+    $("#" + this.name).append("<div class =\"small-4 columns att\"><input type=\"number\" value=\"0\"></div>");
+    $("#" + this.name).append("<div class =\"small-4 columns def\"></div>");
+}
+troops[4].parse = function(){
+    var sect = $("#" + this.name);
+    var x = Math.abs(parseInt(sect.children(".att").children()[0].value));
+    if(Number.isNaN(x))
+        x = 0;
+    Attacker.troop.push(x);
+    Defender.troop.push(0);
+    if(x > 0){
+        use_mod = 0;
+    }
+}
+var use_mod = 1;
 
 var Attacker = new Side(true);
 var Defender = new Side(false);
@@ -186,20 +243,13 @@ function run(){
     dorder = [];
     var a = $("#aOrder").children("#sortable").children("li");
     var d = $("#dOrder").children("#sortable").children("li");
+    aorder.push(4);
     for(var i = 0; i < a.length; i++){
         aorder.push(a[i].value);
         dorder.push(d[i].value);
     }
     troops.forEach(function(item, index, array){
-        var sect = $("#" + item.name);
-        var x = Math.abs(parseInt(sect.children(".att").children()[0].value));
-        var y = Math.abs(parseInt(sect.children(".def").children()[0].value));
-        if(Number.isNaN(x))
-            x = 0;
-        if(Number.isNaN(y))
-            y = 0;
-        Attacker.troop.push(x);
-        Defender.troop.push(y);
+        item.parse();
     })
     answer = getResult(Attacker, Defender, 0);
     values = answer.splice(answer.length-2, 2);
@@ -216,25 +266,20 @@ function print(){
     troops.forEach(function(item, index, array){
         var next = "<div class = \"row\" id =\"" + item.name + "\">\n</div>";
         $("#input").append(next);
-        printInput(item);
+        item.printInput();
     })
     printOrder();
-}
-//print input boxes
-function printInput(item){
-    $("#" + item.name).empty();
-    $("#" + item.name).append("<div class =\"small-2 columns\"><p>" + item.name + "</p></div>");
-    $("#" + item.name).append("<div class =\"small-4 columns att\"><input type=\"number\" value=\"0\"></div>");
-    $("#" + item.name).append("<div class =\"small-4 columns def\"><input type=\"number\" value=\"0\"></div>");
 }
 //print sortable lists
 function printOrder(){
     var x = $("#aOrder").children("#sortable");
     var y = $("#dOrder").children("#sortable");
     troops.forEach(function(item, index, array){
-        var next = "<li class=\"ui-state-default\" value = " + index +">" + item.name + "</li>";
-        x.append(next);
-        y.append(next);
+        if(!item.tags.includes("OTL")){
+            var next = "<li class=\"ui-state-default\" value = " + index +">" + item.name + "</li>";
+            x.append(next);
+            y.append(next);
+        }
     })
 }
 //print result after calculations
