@@ -107,8 +107,10 @@ class Side{
     constructor(a){
         this.troop = [];
         this.att = a;
+        this.lastland = -1;
         this.reset = function () {
             this.troop = [];
+            this.lastland = -1;
         }
         //distribution of number of hits in one round
         this.getHits = function () {
@@ -116,9 +118,7 @@ class Side{
             var t = this.att;
             this.troop.forEach(function(item, index, array){
                 var temp = [];
-                var hit = troops[index].str[0];
-                if(t)
-                    hit = troops[index].str[1];
+                var hit = troops[index].str[t];
                 for(var i = 0; i <= item; i++){
                     temp.push(binompdf(hit/6, item, i));
                 }
@@ -145,20 +145,27 @@ class Side{
         //return a new side with number troops less, removed in order
         this.kill = function(number, order){
             var result = new Side(this.att);
+            result.lastland = this.lastland;
             for(var i = 0; i < order.length; i++){
                 var j = order[i];
                 result.troop[j] = this.troop[j];
                 if(troops[j].tags.includes("OTL")){
                     result.troop[j] = 0;
                     use_mod = 1;
-                }
-                if(result.troop[j] < number){
+                }else if(result.troop[j] <= number){
                     number = number - result.troop[j];
                     result.troop[j] = 0;
+                    if(saveland && (j == this.lastland)){
+                        number++;
+                        result.troop[j]++;
+                    }
                 }else{
                     result.troop[j] = result.troop[j]-number;
                     number = 0;
                 }
+            }
+            if(number > 0 && result.total() == 1){
+                result.troop[lastland]--;
             }
             return result;
         }
@@ -185,8 +192,8 @@ class Troop{
         this.printInput = function(){
             $("#" + this.name).empty();
             $("#" + this.name).append("<div class =\"small-2 columns\"><p>" + this.name + "</p></div>");
-            $("#" + this.name).append("<div class =\"small-4 columns att\"><input type=\"number\" value=\"0\"></div>");
-            $("#" + this.name).append("<div class =\"small-4 columns def\"><input type=\"number\" value=\"0\"></div>");
+            $("#" + this.name).append("<div class =\"small-5 columns att\"><input type=\"number\" value=\"0\"></div>");
+            $("#" + this.name).append("<div class =\"small-5 columns def\"><input type=\"number\" value=\"0\"></div>");
         }
         this.parse = function(){
             var sect = $("#" + this.name);
@@ -210,8 +217,8 @@ troops.push(new Troop(4, 4, 24, "Battleship", ["OTL"]));
 troops[4].printInput = function(){
     $("#" + this.name).empty();
     $("#" + this.name).append("<div class =\"small-2 columns\"><p>" + this.name + "</p></div>");
-    $("#" + this.name).append("<div class =\"small-4 columns att\"><input type=\"number\" value=\"0\"></div>");
-    $("#" + this.name).append("<div class =\"small-4 columns def\"></div>");
+   $("#" + this.name).append("<div class =\"small-5 columns att\"><input type=\"number\" value=\"0\"></div>");
+    $("#" + this.name).append("<div class =\"small-5 columns def\"></div>");
 }
 troops[4].parse = function(){
     var sect = $("#" + this.name);
@@ -225,9 +232,9 @@ troops[4].parse = function(){
     }
 }
 var use_mod = 1;
-
-var Attacker = new Side(true);
-var Defender = new Side(false);
+var saveland = 0;
+var Attacker = new Side(1);
+var Defender = new Side(0);
 var answer = [];
 var values = [];
 var aorder = [];
@@ -244,17 +251,27 @@ function run(){
     var a = $("#aOrder").children("#sortable").children("li");
     var d = $("#dOrder").children("#sortable").children("li");
     aorder.push(4);
+    dorder.push(4);
     for(var i = 0; i < a.length; i++){
         aorder.push(a[i].value);
         dorder.push(d[i].value);
     }
+
+
     troops.forEach(function(item, index, array){
         item.parse();
     })
+    for(var i = aorder.length-1; i >= 0; i--){
+        if(troops[aorder[i]].tags.includes("land") && Attacker.troop[aorder[i]] > 0){
+            Attacker.lastland = aorder[i];
+            i = 0;
+        }
+    }
     answer = getResult(Attacker, Defender, 0);
     values = answer.splice(answer.length-2, 2);
     values[0] = Attacker.value()-values[0];
     values[1] = Defender.value()-values[1];
+    console.log(memo);
     memo = [];
     len = $("#length")[0].value;
     printOutput();
