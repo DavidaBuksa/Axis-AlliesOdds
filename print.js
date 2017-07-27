@@ -47,10 +47,10 @@ function vectorMult(first, second){
     return result;
 }
 //output[i][j] = first[i]*second[j], modified to maintain a valid probability model after setting output[0][0] = 0 by definition
-function vectorProd(first, second){
+function vectorProd(first, second, u_mod){
     var result = [];
     var mod = 1;
-    if(use_mod){
+    if(u_mod){
         mod = 1/(1-first[0]*second[0])
     }
     for(var i = 0; i < first.length; i++){
@@ -59,10 +59,34 @@ function vectorProd(first, second){
             result[i].push(first[i]*second[j]*mod);
         }
     }
-    if(use_mod){
+    if(u_mod){
         result[0][0] = 0;
     }
     return result;
+}
+
+
+function getAA(attacker, defender){
+    var result = [];
+    for(var i = 0; i < Attacker.total() + Defender.total() + 3; i++){
+        result.push(0);
+    }
+    if(defender.hasAA){
+        for(var i = 0; i <= attacker.troop[2]; i++){
+            for(var j = 0; j <= attacker.troop[3]; j++){
+                var child = getResult((attacker.kill(i, [2])).kill(j,[3]), defender);
+                child = scalMult(binompdf(1/6, attacker.troop[2], i) * binompdf(1/6, attacker.troop[3], j), child);
+
+                for(var k = 0; k < child.length; k++){
+                    result[k] = result[k] + child[k];
+                }
+
+            }
+
+        }
+        return result;
+    }else
+        return getResult(attacker, defender);
 }
 var memo = [];//stores getResult values
 //gets the probability distribution of battle survivors AND expected value(EV) remaining alive, in output[0:length-2] and output[length-2:length] respectively.
@@ -72,7 +96,6 @@ function getResult(attacker, defender){
     var val = [];
     val.push(attacker.troop);
     val.push(defender.troop);
-
     for(var i = 0; i < Attacker.total() + Defender.total() + 3; i++){
         result.push(0);
     }
@@ -85,7 +108,7 @@ function getResult(attacker, defender){
     }else if(val in memo){
         result = memo[val].slice(0);
     }else{
-        var matrix = vectorProd(attacker.getHits(), defender.getHits());
+        var matrix = vectorProd(attacker.getHits(), defender.getHits(), use_mod);
         for(var i = 0; i <= attacker.maxhits(); i++){
             for(var j = 0; j <= defender.maxhits(); j++){
                 if(matrix[i][j] != 0){
@@ -108,6 +131,7 @@ class Side{
         this.troop = [];
         this.att = a;
         this.lastland = -1;
+        this.hasAA = 0;
         this.reset = function () {
             this.troop = [];
             this.lastland = -1;
@@ -144,11 +168,9 @@ class Side{
         }
         //return a new side with number troops less, removed in order
         this.kill = function(number, order){
-            var result = new Side(this.att);
-            result.lastland = this.lastland;
+            var result = this.copy()
             for(var i = 0; i < order.length; i++){
                 var j = order[i];
-                result.troop[j] = this.troop[j];
                 if(troops[j].tags.includes("OTL")){
                     result.troop[j] = 0;
                     use_mod = 1;
@@ -164,8 +186,8 @@ class Side{
                     number = 0;
                 }
             }
-            if(number > 0 && result.total() == 1){
-                result.troop[lastland]--;
+            if(number > 0 && order.includes(this.lastland) && result.troop[this.lastland] == 1){
+                result.troop[this.lastland]--;
             }
             return result;
         }
@@ -177,6 +199,14 @@ class Side{
                     result = result + this.troop[i]*troops[i].value;
                 }
             }
+            return result;
+        }
+        this.copy = function(){
+            var result = new Side(this.att);
+            result.lastland = this.lastland;
+            this.troop.forEach(function(item, index, array){
+                result.troop.push(item);
+            })
             return result;
         }
     }
@@ -217,7 +247,7 @@ troops.push(new Troop(4, 4, 24, "Battleship", ["OTL"]));
 troops[4].printInput = function(){
     $("#" + this.name).empty();
     $("#" + this.name).append("<div class =\"small-2 columns\"><p>" + this.name + "</p></div>");
-   $("#" + this.name).append("<div class =\"small-5 columns att\"><input type=\"number\" value=\"0\"></div>");
+    $("#" + this.name).append("<div class =\"small-5 columns att\"><input type=\"number\" value=\"0\"></div>");
     $("#" + this.name).append("<div class =\"small-5 columns def\"></div>");
 }
 troops[4].parse = function(){
@@ -267,11 +297,13 @@ function run(){
             i = 0;
         }
     }
-    answer = getResult(Attacker, Defender, 0);
+    // Defender.hasAA = $("#AA").value
+    Defender.hasAA = $('#AA').is(':checked');
+    saveland = $("#saveland").is(":checked");
+    answer = getAA(Attacker, Defender);
     values = answer.splice(answer.length-2, 2);
     values[0] = Attacker.value()-values[0];
     values[1] = Defender.value()-values[1];
-    console.log(memo);
     memo = [];
     len = $("#length")[0].value;
     printOutput();
