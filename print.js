@@ -96,15 +96,18 @@ function getResult(attacker, defender){
     var val = [];
     val.push(attacker.troop);
     val.push(defender.troop);
-    for(var i = 0; i < Attacker.total() + Defender.total() + 3; i++){
+    for(var i = 0; i < Attacker.total() + Defender.total() + 4; i++){
         result.push(0);
     }
     if(attacker.total() == 0){
         result[Attacker.total() + defender.total()] = 1;
-        result[result.length-1] = defender.value();
+        result[result.length-2] = defender.value();
     }else if(defender.total() == 0){
         result[Attacker.total() - attacker.total()] = 1;
-        result[result.length-2] = attacker.value();
+        result[result.length-3] = attacker.value();
+        if(attacker.hasland()){
+            result[result.length-1] = 1;
+        }
     }else if(val in memo){
         result = memo[val].slice(0);
     }else{
@@ -136,6 +139,15 @@ class Side{
             this.troop = [];
             this.lastland = -1;
         }
+        this.hasland = function(){
+            var result = false;
+            this.troop.forEach(function(item, index, array){
+                if(item > 0 && troops[index].tags.includes("land")){
+                    result = true;
+                }
+            })
+            return result;
+        }
         //distribution of number of hits in one round
         this.getHits = function () {
             var result = [1];
@@ -154,7 +166,7 @@ class Side{
         this.total = function (){
             var result = 0;
             this.troop.forEach(function(item, index, array){
-                if(!troops[index].tags.includes("OTL"))
+                if(!(troops[index].tags.includes("OTL")))
                     result = result + item;
             })
             return result;
@@ -195,7 +207,7 @@ class Side{
         this.value = function(){
             var result = 0;
             for(var i = 0; i < this.troop.length; i++){
-                if(!troops[i].tags.includes("OTL")){
+                if(!(troops[i].tags.includes("OTL"))){
                     result = result + this.troop[i]*troops[i].value;
                 }
             }
@@ -270,7 +282,6 @@ var values = [];
 var aorder = [];
 var dorder = [];
 var len = 8;
-var win = 0;
 
 //main function from "Calculate"
 function run(){
@@ -280,7 +291,7 @@ function run(){
     dorder = [];
     var a = $("#aOrder").children("#sortable").children("li");
     var d = $("#dOrder").children("#sortable").children("li");
-    aorder.push(4);
+    aorder.push(4); // Battleships
     dorder.push(4);
     for(var i = 0; i < a.length; i++){
         aorder.push(a[i].value);
@@ -297,13 +308,13 @@ function run(){
             i = 0;
         }
     }
-    // Defender.hasAA = $("#AA").value
     Defender.hasAA = $('#AA').is(':checked');
     saveland = $("#saveland").is(":checked");
     answer = getAA(Attacker, Defender);
-    values = answer.splice(answer.length-2, 2);
+    values = answer.splice(answer.length-3, 3);
     values[0] = Attacker.value()-values[0];
     values[1] = Defender.value()-values[1];
+    values[2] = values[2]*100;
     memo = [];
     len = $("#length")[0].value;
     printOutput();
@@ -339,6 +350,7 @@ function printOutput(){
 //print distribution after calculation
 function printProbabilities(){
     var c = 0;
+    var win = 0;
     $("#nums").empty();
     $("#cumul").empty();
     $("#indiv").empty();
@@ -371,7 +383,7 @@ function printProbabilities(){
 //print expected value of calculation
 function printEV(){
     $("#EV").empty();
-    $("#EV").append("<td>" + format(win, len) + "</td>");
+    $("#EV").append("<td>" + format(values[2], len) + "</td>");
     $("#EV").append("<td>" + format(values[0], len) + "</td>");
     $("#EV").append("<td>" + format(values[1], len) + "</td>");
     $("#EV").append("<td>" + format(values[1]-values[0], len) + "</td>");
@@ -381,6 +393,8 @@ function printEV(){
 function format(n, length){
     if(n > -.000001 & n < .000001 & length > 5)
         return n.toPrecision(length-5);
+    else if(n > -.000001 && n < .000001)
+        return "0.0";
     var temp = String(n.toPrecision(length));
     return temp.length <= n ? temp : temp.substr(0, length);
 }
