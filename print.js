@@ -68,7 +68,7 @@ function vectorProd(first, second, u_mod){
 
 function getAA(attacker, defender){
     var result = [];
-    for(var i = 0; i < Attacker.total() + Defender.total() + 3; i++){
+    for(var i = 0; i < Attacker.total() + Defender.total() + 4; i++){
         result.push(0);
     }
     if(defender.hasAA){
